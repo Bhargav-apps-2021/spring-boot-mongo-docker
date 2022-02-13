@@ -1,36 +1,40 @@
 node{
     stage("Git CheckOut"){
-        git url: 'https://github.com/MithunTechnologiesDevOps/spring-boot-mongo-docker.git',branch: 'master'
+        git url: 'https://github.com/Bhargav-apps-2021/spring-boot-mongo-docker.git',branch: 'master'
     }
     
     stage(" Maven Clean Package"){
-      def mavenHome =  tool name: "Maven-3.6.1", type: "maven"
+      def mavenHome =  tool name: "Maven3.8.4", type: "maven"
       def mavenCMD = "${mavenHome}/bin/mvn"
       sh "${mavenCMD} clean package"
     } 
     
-    stage("Build Dokcer Image") {
-         sh "docker build -t dockerhandson/spring-boot-mongo ."
+    stage("Build Docker Image") {
+         sh "docker build -t dockerapplication135/maven-web-app:${BUILD_NUMBER} ."
     }
     
     stage("Docker Push"){
-        withCredentials([string(credentialsId: 'Docker_Hub_Pwd', variable: 'Docker_Hub_Pwd')]) {
-          sh "docker login -u dockerhandson -p ${Docker_Hub_Pwd}"
+       withCredentials([string(credentialsId: '483ff64a-2c6c-455e-9243-18dcc42e3ea8', variable: 'Dockerpwd')]) {
+          sh "docker login -u dockerapplication135 -p ${Dockerpwd}"
+          sh "docker push dockerapplication135/maven-web-app:${BUILD_NUMBER}"
         }
-        sh "docker push dockerhandson/spring-boot-mongo"
-        
     }
     
     // Remove local image in Jenkins Server
     stage("Remove Local Image"){
-        sh "docker rmi -f dockerhandson/spring-boot-mongo"
+        sh "docker rmi -f dockerapplication135/maven-web-app"
     }
     
-    stage("Deploy to docker swarm cluster"){
-        sshagent(['Docker_Swarm_Manager_Dev']) {
-		    sh 'scp -o StrictHostKeyChecking=no  docker-compose.yml ubuntu@172.31.47.232:'
-		    //sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.47.232 docker stack rm springboot'
-                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.47.232 docker stack deploy --prune --compose-file docker-compose.yml springboot'
+    stage("Update image tag in compose file"){
+        sh "sed -i s/BUILD_TAG/${BUILD_NUMBER}/g docker-compose.yml"
+        }
+
+
+    stage("Deploy to docker container"){
+        sshagent(['Docker_Dev_SSH']) {
+    	    sh 'scp -o StrictHostKeyChecking=no docker-compose.yml ubuntu@52.66.210.206:'
+			sh 'scp -o StrictHostKeyChecking=no docker login -u dockerapplication135 -p ${Dockerpwd}
+		    sh 'ssh -o StrictHostKeyChecking=no ubuntu@52.66.210.206 docker-compose up -d'
         }
     }
 }
