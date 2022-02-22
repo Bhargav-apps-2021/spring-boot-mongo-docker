@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+    tools {
+        maven "maven3.8.4"
+    }
+    stages{
+        stage('checkout the code'){
+            steps{
+               git credentialsId: '0c401b54-524b-4068-aea6-ed2c025a215b', url: 'https://github.com/Bhargav-apps-2021/spring-boot-mongo-docker.git' 
+            }
+        }
+        stage('Build the code'){
+            steps{
+                sh "mvn clean package"
+            }
+        }
+        stage('build the docker image') {
+            steps{
+                sh "docker build -t dockerapplication135/spring-boot-app:$BUILD_NUMBER ."
+            }
+        }
+        stage('Login to Dockerhub & Push the Image '){
+            steps{
+                withCredentials([string(credentialsId: 'Docker_HUB', variable: 'Docker_PWD')]) {
+                sh "docker login -u dockerapplication135 -p ${Docker_HUB}"
+                sh "docker push dockerapplication135/spring-boot-mongo:$BUILD_NUMBER"
+}
+                
+            }
+        }
+        
+        stage('Edit the BuildNumber in YAML File'){
+            steps{
+                sh "sed -i s/BUILDTAG/$BUILD_NUMBER/g Spring-boot-mongo-app.yaml"
+            }
+        }
+        stage('deploy the springboot in k8s'){
+            steps{
+               
+                sh "kubectl apply -f Spring-boot-mongo-app.yaml"
+            }
+        }
+        
+        
+    }
+}
